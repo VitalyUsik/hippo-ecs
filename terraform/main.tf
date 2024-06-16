@@ -58,6 +58,26 @@ resource "aws_security_group" "main" {
   }
 }
 
+resource "aws_security_group" "vpc_endpoints" {
+  name        = "${var.environment}-vpc-endpoints-sg"
+  description = "Security group for VPC endpoints"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    self        = true
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
 resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 }
@@ -203,7 +223,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${var.region}.ecr.dkr"
   subnet_ids        = [aws_subnet.main_1.id, aws_subnet.main_2.id]
-  security_group_ids = [aws_security_group.main.id]
+  security_group_ids = [aws_security_group.vpc_endpoints.id]
   vpc_endpoint_type = "Interface"
 }
 
@@ -211,7 +231,7 @@ resource "aws_vpc_endpoint" "ecr_api" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${var.region}.ecr.api"
   subnet_ids        = [aws_subnet.main_1.id, aws_subnet.main_2.id]
-  security_group_ids = [aws_security_group.main.id]
+  security_group_ids = [aws_security_group.vpc_endpoints.id]
   vpc_endpoint_type = "Interface"
 }
 
@@ -226,6 +246,6 @@ resource "aws_vpc_endpoint" "secretsmanager" {
   vpc_id            = aws_vpc.main.id
   service_name      = "com.amazonaws.${var.region}.secretsmanager"
   subnet_ids        = [aws_subnet.main_1.id, aws_subnet.main_2.id]
-  security_group_ids = [aws_security_group.main.id]
+  security_group_ids = [aws_security_group.vpc_endpoints.id]
   vpc_endpoint_type = "Interface"
 }
