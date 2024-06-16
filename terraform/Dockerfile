@@ -5,3 +5,5 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 # Copy the website files
 COPY website /usr/share/nginx/html
+
+EXPOSE 80
