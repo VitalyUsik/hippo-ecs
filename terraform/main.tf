@@ -41,7 +41,8 @@ resource "aws_subnet" "main_2" {
   availability_zone = element(data.aws_availability_zones.available.names, 1)
 }
 
-resource "aws_security_group" "main" {
+resource "aws_security_group" "alb_sg" {
+  name   = "${var.environment}-alb-sg"
   vpc_id = aws_vpc.main.id
 
   ingress {
@@ -49,6 +50,25 @@ resource "aws_security_group" "main" {
     to_port     = 80
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "ecs_service_sg" {
+  name   = "${var.environment}-ecs-service-sg"
+  vpc_id = aws_vpc.main.id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    security_groups = [aws_security_group.alb_sg.id]
   }
 
   egress {
@@ -107,7 +127,7 @@ resource "aws_lb" "main" {
   name               = "main-lb"
   internal           = false
   load_balancer_type = "application"
-  security_groups    = [aws_security_group.main.id]
+  security_groups    = [aws_security_group.alb_sg.id]
   subnets            = [aws_subnet.main_1.id, aws_subnet.main_2.id]
 }
 
@@ -196,7 +216,7 @@ resource "aws_ecs_service" "main" {
 
   network_configuration {
     subnets         = [aws_subnet.main_1.id, aws_subnet.main_2.id]
-    security_groups = [aws_security_group.main.id]
+    security_groups = [aws_security_group.ecs_service_sg.id]
   }
 
   load_balancer {
