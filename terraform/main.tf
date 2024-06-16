@@ -29,15 +29,29 @@ resource "aws_vpc" "main" {
   enable_dns_hostnames = true
 }
 
-resource "aws_subnet" "main_1" {
+resource "aws_subnet" "public_1" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.1.0/24"
   availability_zone = element(data.aws_availability_zones.available.names, 0)
+  map_public_ip_on_launch = true
 }
 
-resource "aws_subnet" "main_2" {
+resource "aws_subnet" "public_2" {
   vpc_id            = aws_vpc.main.id
   cidr_block        = "10.0.2.0/24"
+  availability_zone = element(data.aws_availability_zones.available.names, 1)
+  map_public_ip_on_launch = true
+}
+
+resource "aws_subnet" "private_1" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.3.0/24"
+  availability_zone = element(data.aws_availability_zones.available.names, 0)
+}
+
+resource "aws_subnet" "private_2" {
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = "10.0.4.0/24"
   availability_zone = element(data.aws_availability_zones.available.names, 1)
 }
 
@@ -103,7 +117,14 @@ resource "aws_internet_gateway" "main" {
   vpc_id = aws_vpc.main.id
 }
 
-resource "aws_route_table" "main" {
+resource "aws_eip" "eip" {}
+
+resource "aws_nat_gateway" "nat_gw" {
+  allocation_id = aws_eip.eip.id
+  subnet_id     = aws_subnet.public_1.id
+}
+
+resource "aws_route_table" "public" {
   vpc_id = aws_vpc.main.id
 
   route {
@@ -112,23 +133,41 @@ resource "aws_route_table" "main" {
   }
 }
 
-resource "aws_route_table_association" "main_1" {
-  subnet_id      = aws_subnet.main_1.id
-  route_table_id = aws_route_table.main.id
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.nat_gw.id
+  }
 }
 
-resource "aws_route_table_association" "main_2" {
-  subnet_id      = aws_subnet.main_2.id
-  route_table_id = aws_route_table.main.id
+resource "aws_route_table_association" "public_1" {
+  subnet_id      = aws_subnet.public_1.id
+  route_table_id = aws_route_table.public.id
 }
 
+resource "aws_route_table_association" "public_2" {
+  subnet_id      = aws_subnet.public_2.id
+  route_table_id = aws_route_table.public.id
+}
+
+resource "aws_route_table_association" "private_1" {
+  subnet_id      = aws_subnet.private_1.id
+  route_table_id = aws_route_table.private.id
+}
+
+resource "aws_route_table_association" "private_2" {
+  subnet_id      = aws_subnet.private_2.id
+  route_table_id = aws_route_table.private.id
+}
 
 resource "aws_lb" "main" {
   name               = "main-lb"
   internal           = false
   load_balancer_type = "application"
   security_groups    = [aws_security_group.alb_sg.id]
-  subnets            = [aws_subnet.main_1.id, aws_subnet.main_2.id]
+  subnets            = [aws_subnet.public_1.id, aws_subnet.public_2.id]
 }
 
 resource "aws_lb_target_group" "main" {
@@ -215,7 +254,7 @@ resource "aws_ecs_service" "main" {
   launch_type     = "FARGATE"
 
   network_configuration {
-    subnets         = [aws_subnet.main_1.id, aws_subnet.main_2.id]
+    subnets         = [aws_subnet.private_1.id, aws_subnet.private_2.id]
     security_groups = [aws_security_group.ecs_service_sg.id]
   }
 
@@ -243,7 +282,7 @@ resource "aws_route53_record" "www" {
 resource "aws_vpc_endpoint" "ecr_dkr" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${var.region}.ecr.dkr"
-  subnet_ids          = [aws_subnet.main_1.id, aws_subnet.main_2.id]
+  subnet_ids          = [aws_subnet.private_1.id, aws_subnet.private_2.id]
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   vpc_endpoint_type   = "Interface"
   private_dns_enabled = true
@@ -252,7 +291,7 @@ resource "aws_vpc_endpoint" "ecr_dkr" {
 resource "aws_vpc_endpoint" "ecr_api" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${var.region}.ecr.api"
-  subnet_ids          = [aws_subnet.main_1.id, aws_subnet.main_2.id]
+  subnet_ids          = [aws_subnet.private_1.id, aws_subnet.private_2.id]
   security_group_ids  = [aws_security_group.vpc_endpoints.id]
   vpc_endpoint_type   = "Interface"
   private_dns_enabled = true
@@ -261,14 +300,14 @@ resource "aws_vpc_endpoint" "ecr_api" {
 resource "aws_vpc_endpoint" "s3" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${var.region}.s3"
-  route_table_ids     = [aws_route_table.main.id]
+  route_table_ids     = [aws_route_table.private.id]
   vpc_endpoint_type   = "Gateway"
 }
 
 resource "aws_vpc_endpoint" "secretsmanager" {
   vpc_id              = aws_vpc.main.id
   service_name        = "com.amazonaws.${var.region}.secretsmanager"
-  subnet_ids          = [aws_subnet.main_1.id, aws_subnet.main_2.id]
+  subnet_ids          = [aws_subnet.private_1.id, aws_subnet.private_2.id]
   security_group_ids = [aws_security_group.vpc_endpoints.id]
   vpc_endpoint_type   = "Interface"
   private_dns_enabled = true
