@@ -198,3 +198,34 @@ resource "aws_route53_record" "www" {
     evaluate_target_health = true
   }
 }
+
+resource "aws_vpc_endpoint" "ecr_dkr" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.ecr.dkr"
+  subnet_ids        = [aws_subnet.main_1.id, aws_subnet.main_2.id]
+  security_group_ids = [aws_security_group.main.id]
+  vpc_endpoint_type = "Interface"
+}
+
+resource "aws_vpc_endpoint" "ecr_api" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.ecr.api"
+  subnet_ids        = [aws_subnet.main_1.id, aws_subnet.main_2.id]
+  security_group_ids = [aws_security_group.main.id]
+  vpc_endpoint_type = "Interface"
+}
+
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = aws_vpc.main.id
+  service_name = "com.amazonaws.${var.region}.s3"
+  route_table_ids = [aws_route_table.main.id]
+  vpc_endpoint_type = "Gateway"
+}
+
+resource "aws_vpc_endpoint" "secretsmanager" {
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${var.region}.secretsmanager"
+  subnet_ids        = [aws_subnet.main_1.id, aws_subnet.main_2.id]
+  security_group_ids = [aws_security_group.main.id]
+  vpc_endpoint_type = "Interface"
+}
