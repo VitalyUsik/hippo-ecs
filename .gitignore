@@ -1,2 +1,5 @@
-terraform/.terraform
-terraform/.docker_build_hash
+live/dev/ecs/.terragrunt-cache
+live/dev/vpc/.terragrunt-cache
+
+live/prod/ecs/.terragrunt-cache
+live/prod/vpc/.terragrunt-cache
