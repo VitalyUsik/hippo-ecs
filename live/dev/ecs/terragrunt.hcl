@@ -13,7 +13,7 @@ dependency "vpc" {
 inputs = {
   environment         = "dev"
   vpc_id              = dependency.vpc.outputs.vpc_id
-  public_subnet_ids   = dependency.vpc.outputs.public_subnet_ids
-  private_subnet_ids  = dependency.vpc.outputs.private_subnet_ids
+  public_subnet_ids   = dependency.vpc.outputs.public_subnets
+  private_subnet_ids  = dependency.vpc.outputs.private_subnets
   region              = "sa-east-1"
 }
